@@ -12,10 +12,12 @@ if not MONGO_URI:
     st.error("Set MONGO_URI in your .env")
     st.stop()
 
+# --- Database setup ---
 client = MongoClient(MONGO_URI)
 db = client["examdb"]
 exam_col = db["exam_questions"]
 student_col = db["student_questions"]
+contrib_col = db["contrib_questions"]
 
 st.set_page_config(page_title="EC307 Website", page_icon="📘", layout="wide")
 st.title("📘 EC307 Website")
@@ -152,12 +154,31 @@ elif page == "Vote for Next Lecture Exam Question":
 
 elif page == "Post Your Own Exam Question":
     st.header("Contribute Your Own Exam Question for future years")
-    st.caption("Submit your own question for next exams to be reviewed")
-    # Add your existing form for posting questions here
-    st.info("Post your own question interface placeholder — add your code here")
+    st.caption("Submit your own question for future exams to be reviewed by the instructor.")
+
+    with st.form("contrib_form"):
+        new_text = st.text_area("Write your question here")
+        new_topics = st.text_input("Topics (comma separated)")
+        new_year = st.number_input("Suggested year", min_value=2024, max_value=2100, value=2024)
+        new_type = st.text_input("Question type (e.g., MCQ, Essay)")
+        submitted = st.form_submit_button("Submit Question")
+
+        if submitted:
+            topics_list = [t.strip() for t in new_topics.split(",") if t.strip()]
+            contrib_col.insert_one({
+                "text": new_text,
+                "topics": topics_list,
+                "year": int(new_year),
+                "type": new_type.strip() or "Other",
+                "submitted_at": datetime.utcnow(),
+                "verified": False,
+                "response": None
+            })
+            st.success("✅ Your question has been submitted. The instructor will review it.")
 
 # --- Instructor panel ---
 if st.session_state.get("instructor_logged_in", False):
+    # Instructor section to review student questions about exam questions
     st.markdown("---")
     st.header("📋 Instructor: Review & Answer Student Questions")
     unverified = list(student_col.find({"verified": False}).sort("created_at", 1).limit(200))
@@ -187,3 +208,33 @@ if st.session_state.get("instructor_logged_in", False):
                 student_col.delete_one({"_id": doc["_id"]})
                 st.success("❌ Student question deleted")
                 st.rerun()
+
+    # Show contributed exam questions
+    st.markdown("---")
+    st.subheader("Student Contributed Exam Questions")
+    unverified_contrib = list(contrib_col.find({"verified": False}).sort("submitted_at", 1).limit(200))
+    st.write(f"Unverified contributed questions: {len(unverified_contrib)}")
+    for doc in unverified_contrib:
+        st.markdown(f"**Question:** {doc['text']}")
+        st.markdown(f"**Topics:** {', '.join(doc.get('topics', []))} | **Year:** {doc.get('year')} | **Type:** {doc.get('type', 'N/A')}")
+        
+        resp_key = f"resp_contrib_{str(doc['_id'])}"
+        response_text = st.text_area("Write your feedback / answer here", key=resp_key)
+
+        col1, col2 = st.columns([1,1])
+        with col1:
+            if st.button("✅ Verify & Accept", key=f"verify_contrib_{str(doc['_id'])}"):
+                if not response_text.strip():
+                    st.warning("Please write a response before verifying.")
+                else:
+                    contrib_col.update_one(
+                        {"_id": doc["_id"]},
+                        {"$set": {"response": response_text.strip(), "verified": True, "answered_at": datetime.utcnow()}}
+                    )
+                    st.success("Contributed question verified & saved.")
+                    st.experimental_rerun()
+        with col2:
+            if st.button("🗑 Delete Question", key=f"delete_contrib_{str(doc['_id'])}"):
+                contrib_col.delete_one({"_id": doc["_id"]})
+                st.success("Contributed question deleted")
+                st.experimental_rerun()
