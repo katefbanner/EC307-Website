@@ -17,7 +17,7 @@ client = MongoClient(MONGO_URI)
 db = client["examdb"]
 exam_col = db["exam_questions"]
 student_col = db["student_questions"]
-contrib_col = db["contrib_questions"]
+contrib_col = db["contributed_questions"]
 
 st.set_page_config(page_title="EC307 Website", page_icon="📘", layout="wide")
 st.title("📘 EC307 Website")
@@ -141,26 +141,25 @@ def question_card(exam):
 # --- Main content depending on menu ---
 if page == "Exam Questions":
     st.header("Browse Questions from Past Exams")
-    st.caption("All questions are from previous years' exams. You can ask about any question below.")
+    st.caption("Below is all the questions from previous EC307 exams for AT. You can ask about any question below, we will respond to your anonymous question and post the question with our response so everyone can view it and learn.")
     query = render_filters()
     for exam in exam_col.find(query).sort("year", -1).limit(200):
         question_card(exam)
 
 elif page == "Vote for Next Lecture Exam Question":
-    st.header("Vote for Next Week's Exam Question")
-    st.caption("Choose which exam question you want Oriana to discuss next week.")
+    st.header("Vote for Next Week's Lecture Exam Question")
+    st.caption("Choose which exam question you want Oriana to cover next week.")
     # Add your existing voting interface here
     st.info("Voting interface placeholder — add your code here")
 
 elif page == "Post Your Own Exam Question":
     st.header("Contribute Your Own Exam Question for future years")
-    st.caption("Submit your own question for future exams to be reviewed by the instructor.")
+    st.caption("Submit your own question for future exams to be reviewed by the instructor and potentially included in future exams!")
 
     with st.form("contrib_form"):
         new_text = st.text_area("Write your question here")
         new_topics = st.text_input("Topics (comma separated)")
-        new_year = st.number_input("Suggested year", min_value=2024, max_value=2100, value=2024)
-        new_type = st.text_input("Question type (e.g., MCQ, Essay)")
+        new_type = st.selectbox("Question Type", ["Section A: Short Question", "Section B: Long Question"])
         submitted = st.form_submit_button("Submit Question")
 
         if submitted:
@@ -168,7 +167,6 @@ elif page == "Post Your Own Exam Question":
             contrib_col.insert_one({
                 "text": new_text,
                 "topics": topics_list,
-                "year": int(new_year),
                 "type": new_type.strip() or "Other",
                 "submitted_at": datetime.utcnow(),
                 "verified": False,
@@ -176,65 +174,48 @@ elif page == "Post Your Own Exam Question":
             })
             st.success("✅ Your question has been submitted. The instructor will review it.")
 
+
 # --- Instructor panel ---
 if st.session_state.get("instructor_logged_in", False):
-    # Instructor section to review student questions about exam questions
-    st.markdown("---")
-    st.header("📋 Instructor: Review & Answer Student Questions")
-    unverified = list(student_col.find({"verified": False}).sort("created_at", 1).limit(200))
-    st.write(f"Unverified student questions: {len(unverified)}")
-    for doc in unverified:
-        parent = exam_col.find_one({"_id": doc["question_id"]})
-        st.markdown(f"**For exam:** {parent['text'][:180]}")
-        st.markdown(f"**Student asked:** {doc['question']}")
 
-        resp_key = f"resp_{str(doc['_id'])}"
-        response_text = st.text_area("Write your response here", key=resp_key)
+    if page == "Exam Questions":
+        # Instructor view for student questions on existing exams
+        st.markdown("---")
+        st.header("Instructor: Review Student Questions on Exams")
+        unverified_student = list(student_col.find({"verified": False}).sort("created_at", 1).limit(200))
+        st.write(f"Unverified student questions: {len(unverified_student)}")
+        for doc in unverified_student:
+            parent = exam_col.find_one({"_id": doc["question_id"]})
+            if parent:
+                st.markdown(f"**For exam:** {parent['text'][:180]}")
+            else:
+                st.markdown("**For exam:** [Deleted or missing exam]")
+            st.markdown(f"**Student asked:** {doc['question']}")
+            resp_key = f"resp_{str(doc['_id'])}"
+            response_text = st.text_area("Write your response here", key=resp_key)
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                if st.button("Verify & Publish", key=f"verify_{str(doc['_id'])}"):
+                    if response_text.strip():
+                        student_col.update_one(
+                            {"_id": doc["_id"]},
+                            {"$set": {"response": response_text.strip(), "verified": True, "answered_at": datetime.utcnow()}}
+                        )
+                        st.success("Answer saved & verified — it will now appear for students.")
+            with col2:
+                if st.button("🗑 Delete Question", key=f"delete_{str(doc['_id'])}"):
+                    student_col.delete_one({"_id": doc["_id"]})
+                    st.success("Student question deleted")
 
-        col1, col2 = st.columns([1,1])
-        with col1:
-            if st.button("✅ Verify & Publish", key=f"verify_{str(doc['_id'])}"):
-                if not response_text.strip():
-                    st.warning("Please write a response before verifying.")
-                else:
-                    student_col.update_one(
-                        {"_id": doc["_id"]},
-                        {"$set": {"response": response_text.strip(), "verified": True, "answered_at": datetime.utcnow()}}
-                    )
-                    st.success("Answer saved & verified — it will now appear for students.")
-                    st.rerun()
-        with col2:
-            if st.button("🗑 Delete Question", key=f"delete_{str(doc['_id'])}"):
-                student_col.delete_one({"_id": doc["_id"]})
-                st.success("❌ Student question deleted")
-                st.rerun()
-
-    # Show contributed exam questions
-    st.markdown("---")
-    st.subheader("Student Contributed Exam Questions")
-    unverified_contrib = list(contrib_col.find({"verified": False}).sort("submitted_at", 1).limit(200))
-    st.write(f"Unverified contributed questions: {len(unverified_contrib)}")
-    for doc in unverified_contrib:
-        st.markdown(f"**Question:** {doc['text']}")
-        st.markdown(f"**Topics:** {', '.join(doc.get('topics', []))} | **Year:** {doc.get('year')} | **Type:** {doc.get('type', 'N/A')}")
-        
-        resp_key = f"resp_contrib_{str(doc['_id'])}"
-        response_text = st.text_area("Write your feedback / answer here", key=resp_key)
-
-        col1, col2 = st.columns([1,1])
-        with col1:
-            if st.button("✅ Verify & Accept", key=f"verify_contrib_{str(doc['_id'])}"):
-                if not response_text.strip():
-                    st.warning("Please write a response before verifying.")
-                else:
-                    contrib_col.update_one(
-                        {"_id": doc["_id"]},
-                        {"$set": {"response": response_text.strip(), "verified": True, "answered_at": datetime.utcnow()}}
-                    )
-                    st.success("Contributed question verified & saved.")
-                    st.experimental_rerun()
-        with col2:
+    elif page == "Post Your Own Exam Question":
+        # Instructor view for contributed exam questions
+        st.markdown("---")
+        st.header("Instructor: Review Contributed Exam Questions")
+        contrib_questions = list(contrib_col.find().sort("submitted_at", 1).limit(200))
+        st.write(f"Total contributed questions: {len(contrib_questions)}")
+        for doc in contrib_questions:
+            st.markdown(f"**Question:** {doc['text']}")
+            st.markdown(f"**Topics:** {', '.join(doc.get('topics', []))} | **Type:** {doc.get('type', 'N/A')}")
             if st.button("🗑 Delete Question", key=f"delete_contrib_{str(doc['_id'])}"):
                 contrib_col.delete_one({"_id": doc["_id"]})
                 st.success("Contributed question deleted")
-                st.experimental_rerun()
