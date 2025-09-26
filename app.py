@@ -152,28 +152,6 @@ elif page == "Vote for Next Lecture Exam Question":
     # Add your existing voting interface here
     st.info("Voting interface placeholder — add your code here")
 
-elif page == "Post Your Own Exam Question":
-    st.header("Contribute Your Own Exam Question for future years")
-    st.caption("Submit your own question for future exams to be reviewed by the instructor and potentially included in future exams!")
-
-    with st.form("contrib_form"):
-        new_text = st.text_area("Write your question here")
-        new_topics = st.text_input("Topics (comma separated)")
-        new_type = st.selectbox("Question Type", ["Section A: Short Question", "Section B: Long Question"])
-        submitted = st.form_submit_button("Submit Question")
-
-        if submitted:
-            topics_list = [t.strip() for t in new_topics.split(",") if t.strip()]
-            contrib_col.insert_one({
-                "text": new_text,
-                "topics": topics_list,
-                "type": new_type.strip() or "Other",
-                "submitted_at": datetime.utcnow(),
-                "verified": False,
-                "response": None
-            })
-            st.success("✅ Your question has been submitted. The instructor will review it.")
-
 
 # --- Instructor panel ---
 if st.session_state.get("instructor_logged_in", False):
@@ -207,15 +185,3 @@ if st.session_state.get("instructor_logged_in", False):
                     student_col.delete_one({"_id": doc["_id"]})
                     st.success("Student question deleted")
 
-    elif page == "Post Your Own Exam Question":
-        # Instructor view for contributed exam questions
-        st.markdown("---")
-        st.header("Instructor: Review Contributed Exam Questions")
-        contrib_questions = list(contrib_col.find().sort("submitted_at", 1).limit(200))
-        st.write(f"Total contributed questions: {len(contrib_questions)}")
-        for doc in contrib_questions:
-            st.markdown(f"**Question:** {doc['text']}")
-            st.markdown(f"**Topics:** {', '.join(doc.get('topics', []))} | **Type:** {doc.get('type', 'N/A')}")
-            if st.button("🗑 Delete Question", key=f"delete_contrib_{str(doc['_id'])}"):
-                contrib_col.delete_one({"_id": doc["_id"]})
-                st.success("Contributed question deleted")
