@@ -7,10 +7,16 @@ from datetime import datetime
 from bson import ObjectId
 import streamlit as st
 
-MONGO_URI = st.secrets.get("MONGO_URI", os.getenv("MONGO_URI"))
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI")
 if not MONGO_URI:
-    st.error("Set MONGO_URI in .env (for local) or in Streamlit Secrets (for deployment)")
+    st.error("Set MONGO_URI in your .env")
     st.stop()
+
+# MONGO_URI = st.secrets.get("MONGO_URI", os.getenv("MONGO_URI"))
+# if not MONGO_URI:
+    # st.error("Set MONGO_URI in .env (for local) or in Streamlit Secrets (for deployment)")
+    # st.stop()
 
 # --- Database setup ---
 client = MongoClient(MONGO_URI)
@@ -24,7 +30,7 @@ st.title("EC307")
 st.caption("Browse past questions, ask about them, and vote for what Oriana should discuss next week.")
 
 # --- Left-hand menu ---
-menu_options = ["Exam Questions", "Vote for Next Lecture Exam Question", "Post Your Own Exam Question"]
+menu_options = ["Exam Questions", "Vote for Next Lecture Exam Question"]
 with st.sidebar:
     st.header("Navigation")
     page = st.radio("Go to", menu_options)
