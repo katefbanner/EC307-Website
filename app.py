@@ -19,8 +19,8 @@ exam_col = db["exam_questions"]
 student_col = db["student_questions"]
 contrib_col = db["contributed_questions"]
 
-st.set_page_config(page_title="EC307 Website", page_icon="📘", layout="wide")
-st.title("📘 EC307 Website")
+st.set_page_config(page_title="EC307", page_icon="📘", layout="wide")
+st.title("EC307")
 st.caption("Browse past questions, ask about them, and vote for what Oriana should discuss next week.")
 
 # --- Left-hand menu ---
