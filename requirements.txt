@@ -1,8 +1,5 @@
 streamlit
 pymongo
 dnspython
-dotenv
-os
-datetime
-bson
+python-dotenv
 
