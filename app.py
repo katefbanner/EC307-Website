@@ -5,11 +5,11 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 from bson import ObjectId
+import streamlit as st
 
-load_dotenv()
-MONGO_URI = os.getenv("MONGO_URI")
+MONGO_URI = st.secrets.get("MONGO_URI", os.getenv("MONGO_URI"))
 if not MONGO_URI:
-    st.error("Set MONGO_URI in your .env")
+    st.error("Set MONGO_URI in .env (for local) or in Streamlit Secrets (for deployment)")
     st.stop()
 
 # --- Database setup ---
