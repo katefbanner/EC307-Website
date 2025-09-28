@@ -24,8 +24,7 @@ exam_col = db["exam_questions"]
 student_col = db["student_questions"]
 contrib_col = db["contributed_questions"]
 
-st.set_page_config(page_icon="./assets/favicon.ico")
-
+st.set_page_config(page_icon="./assets/favicon.png")
 
 st.set_page_config(page_title="EC307", layout="wide")
 st.title("EC307")
@@ -141,11 +140,7 @@ def question_card(exam):
             })
             st.success("✅ Your question has been submitted. It will appear once answered and verified.")
 
-    # Light separator bar
-    st.markdown(
-        '<div style="height:12px; background-color:#f0f2f6; margin:12px 0; border-radius:6px;"></div>',
-        unsafe_allow_html=True
-    )
+    st.markdown("---")
 
 # --- Main content depending on menu ---
 if page == "Exam Questions":
