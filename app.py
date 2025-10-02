@@ -6,6 +6,29 @@ import os
 from datetime import datetime
 from bson import ObjectId
 
+#  hide the GitHub icon
+st.markdown(
+    """
+    <style>
+    /* Hide the GitHub viewer badge */
+    [data-testid="viewer-badge"] {
+        display: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    """
+    <style>
+    footer {visibility: hidden;}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+            
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 if not MONGO_URI:
