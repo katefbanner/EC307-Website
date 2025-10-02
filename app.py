@@ -225,7 +225,6 @@ if page == "Exam Questions":
     st.header("Browse Questions from Past Exams")
     st.write("##### Below are all the past EC307 exam questions for AT. You can ask about any of them, and we’ll respond to your question and share both the question and our response so everyone can learn.")
 
-
     query = render_filters()
     st.markdown("---")
     for exam in exam_col.find(query).sort("year", -1).limit(200):
