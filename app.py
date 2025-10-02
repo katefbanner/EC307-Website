@@ -161,9 +161,9 @@ def vote_page():
     st.header("Vote for Next Week's Lecture Exam Question")
     st.write("##### Choose which exam question you want Professor Bandiera to cover next week.")
     st.markdown("---")
-    
+
     # Example: filter questions by topic and type
-    topic_filter = {"topics": "Poverty traps and the jobs of the poor", "type": "Section B: Long Question"}
+    topic_filter = {"topics": "Methods of Development I: Program Evaluation and RCTs", "type": "Section B: Long Question"}
     topic_questions = list(exam_col.find(topic_filter))
 
     if "has_voted" not in st.session_state:
