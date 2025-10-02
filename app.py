@@ -24,11 +24,20 @@ exam_col = db["exam_questions"]
 student_col = db["student_questions"]
 contrib_col = db["contributed_questions"]
 
-st.set_page_config(page_icon="./assets/favicon.png")
+favicon_path = os.path.join(os.path.dirname(__file__), "favicon.png")
 
-st.set_page_config(page_title="EC307", layout="wide")
-st.title("EC307")
-st.caption("Browse past questions, ask about them, and vote for what Oriana should discuss next week.")
+st.set_page_config(
+    page_title="EC307",
+    layout="wide",
+    page_icon=favicon_path
+)
+
+st.title("EC307") 
+st.markdown(
+    "<p style='font-size:18px;'>Browse past exam questions, ask your own, and vote on the exam question Professor Bandiera will cover next lecture.</p>", 
+    unsafe_allow_html=True
+)
+
 
 # --- Left-hand menu ---
 menu_options = ["Exam Questions", "Vote for Next Lecture Exam Question"]
@@ -95,23 +104,29 @@ def question_card(exam):
     qid = exam["_id"]
     qid_str = str(qid)
 
-    # Card for exam question
+    # Start card wrapper
+    
+
+    # Section A → text-based questions
+    if exam.get("type", "").startswith("Section A"):
+        st.markdown(
+            f"<h4 style='margin-bottom:6px'>{exam.get('text', '')}</h4>",
+            unsafe_allow_html=True
+        )
+
+    # Section B → image-based questions
+    elif exam.get("type", "").startswith("Section B"):
+        for img in exam.get("fig_path", []):
+            st.image(img, use_container_width=True)
+
+    # Common metadata footer
     st.markdown(
         f"""
-        <div style="
-            background-color: #ffffff;
-            padding: 16px;
-            border-radius: 12px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-            margin-bottom: 4px;
-        ">
-            <h4 style="margin-bottom:6px">{exam['text']}</h4>
-            <div style="font-size:0.9em;color:#333;margin-bottom:10px;">
-                <b>Topic:</b> {', '.join(exam.get('topics', []))} &nbsp; | &nbsp;
-                <b>Year:</b> {exam.get('year', 'N/A')} &nbsp; | &nbsp;
-                <b>Question Type:</b> {exam.get('type', 'N/A')} &nbsp; | &nbsp;
-                <b>Votes:</b> {exam.get('votes', 0)}
-            </div>
+        <div style="font-size:0.9em;color:#333;margin-top:10px;">
+            <b>Topic:</b> {', '.join(exam.get('topics', []))} &nbsp; | &nbsp;
+            <b>Year:</b> {exam.get('year', 'N/A')} &nbsp; | &nbsp;
+            <b>Question Type:</b> {exam.get('type', 'N/A')} &nbsp; | &nbsp;
+            <b>Votes:</b> {exam.get('votes', 0)}
         </div>
         """,
         unsafe_allow_html=True
@@ -142,20 +157,62 @@ def question_card(exam):
 
     st.markdown("---")
 
+def vote_page():
+    st.header("Vote for Next Week's Lecture Exam Question")
+    st.write("##### Choose which exam question you want Professor Bandiera to cover next week.")
+    st.markdown("---")
+    
+    # Example: filter questions by topic and type
+    topic_filter = {"topics": "Poverty traps and the jobs of the poor", "type": "Section B: Long Question"}
+    topic_questions = list(exam_col.find(topic_filter))
+
+    if "has_voted" not in st.session_state:
+        st.session_state.has_voted = False
+
+    # Iterate through questions in pairs (for 2 columns)
+    for i in range(0, len(topic_questions), 2):
+        cols = st.columns(2)
+
+        for j, col in enumerate(cols):
+            if i + j < len(topic_questions):
+                q = topic_questions[i + j]
+
+                with col:
+                    # Show images with consistent width
+                    for img in q.get("fig_path", []):
+                        st.image(img, use_container_width=True)
+
+                    # Show vote count
+                    st.markdown(f"👍 **{q.get('votes', 0)} votes**")
+
+                    # Voting button
+                    if not st.session_state.has_voted:
+                        if st.button("Place vote", key=str(q["_id"])):
+                            exam_col.update_one(
+                                {"_id": ObjectId(q["_id"])},
+                                {"$inc": {"votes": 1}}
+                            )
+                            st.session_state.has_voted = True
+                            st.success("✅ Thanks for voting!")
+                            st.rerun()
+                    else:
+                        st.button("Place vote", key=str(q["_id"]), disabled=True)
+
+
 # --- Main content depending on menu ---
 if page == "Exam Questions":
     st.header("Browse Questions from Past Exams")
-    st.caption("Below is all the questions from previous EC307 exams for AT. You can ask about any question below, we will respond to your anonymous question and post the question with our response so everyone can view it and learn.")
+    st.write("##### Below are all the past EC307 exam questions for AT. You can ask about any of them, and we’ll respond to your question and share both the question and our response so everyone can learn.")
+
+
     query = render_filters()
+    st.markdown("---")
     for exam in exam_col.find(query).sort("year", -1).limit(200):
         question_card(exam)
 
 elif page == "Vote for Next Lecture Exam Question":
-    st.header("Vote for Next Week's Lecture Exam Question")
-    st.caption("Choose which exam question you want Oriana to cover next week.")
     # Add your existing voting interface here
-    st.info("Voting interface placeholder — add your code here")
-
+    vote_page()
 
 # --- Instructor panel ---
 if st.session_state.get("instructor_logged_in", False):
@@ -188,4 +245,3 @@ if st.session_state.get("instructor_logged_in", False):
                 if st.button("🗑 Delete Question", key=f"delete_{str(doc['_id'])}"):
                     student_col.delete_one({"_id": doc["_id"]})
                     st.success("Student question deleted")
-
