@@ -193,9 +193,15 @@ def vote_page():
                 q = topic_questions[i + j]
 
                 with col:
-                    # Show images with consistent width
-                    for img in q.get("fig_path", []):
-                        st.image(img, use_container_width=True)
+                    # Display question text if it exists (Section A type questions)
+                    if q.get("text") and q.get("text").strip():
+                        st.markdown(f"**Question:** {q.get('text')}")
+                        st.markdown("")  # Add some spacing
+                    
+                    # Show images if they exist (Section B type questions)
+                    if q.get("fig_path"):
+                        for img in q.get("fig_path", []):
+                            st.image(img, use_container_width=True)
 
                     # Show vote count
                     st.markdown(f"👍 **{q.get('votes', 0)} votes**")
