@@ -179,7 +179,7 @@ def vote_page():
 
     # Example: filter questions by topic and type
     topic_filter = {"topics": "Poverty traps and the jobs of the poor"}
-    topic_questions = list(exam_col.find(topic_filter))
+    topic_questions = list(exam_col.find(topic_filter).sort("votes", -1))
 
     if "has_voted" not in st.session_state:
         st.session_state.has_voted = False
