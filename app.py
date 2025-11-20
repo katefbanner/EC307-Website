@@ -178,7 +178,7 @@ def vote_page():
     st.markdown("---")
 
     # Example: filter questions by topic and type
-    topic_filter = {"topics": "Coordination failure and the extent of the market "}
+    topic_filter = {"topics": "Coordination failure and the extent of the market"}
     topic_questions = list(exam_col.find(topic_filter).sort("votes", -1))
 
     if "has_voted" not in st.session_state:
